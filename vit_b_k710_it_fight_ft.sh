@@ -1,28 +1,26 @@
 #!/usr/bin/env bash
 set -x  # print the commands
 
-export MASTER_PORT=${MASTER_PORT:-12320}  # You should set the same master_port in all the nodes
 
-OUTPUT_DIR='./work_dir'  # Your output folder for deepspeed config file, logs and checkpoints
-DATA_PATH='./data/fight'  # The data list folder. the folder has three files: train.csv, val.csv, test.csv
-# finetune data list file follows the following format
-# for the video data line: video_path, label
-# for the rawframe data line: frame_folder_path, total_frames, label
-MODEL_PATH='./weights/vit_b_k710_dl_from_giant.pth'  # Model for initializing parameters
+# .env 파일 로드
+if [ -f .env ]; then
+    source .env
+else
+    echo ".env 파일을 찾을 수 없습니다."
+    exit 1
+fi
 
-N_NODES=${N_NODES:-1}  # Number of nodes
-GPUS_PER_NODE=${GPUS_PER_NODE:-4}  # Number of GPUs in each node
 SRUN_ARGS=${SRUN_ARGS:-""}  # Other slurm task args
 PY_ARGS=${@:3}  # Other training args
 
 # Please refer to `run_class_finetuning.py` for the meaning of the following hyperreferences
 OMP_NUM_THREADS=1 torchrun --nproc_per_node=${GPUS_PER_NODE} \
-        --master_port ${MASTER_PORT} --nnodes=${N_NODES} --node_rank=$1 --master_addr=$2 \
+        --master_port ${MASTER_PORT} --nnodes=${N_NODES} --node_rank=${NODE_RANK} --master_addr=${MASTER_ADDR} \
         run_class_finetuning.py \
         --model vit_base_patch16_224 \
         --data_set Custom_Image \
         --nb_classes 2 \
-        --data_path ${DATA_PATH} \
+        --data_path ${TRAIN_CSV_DIR} \
         --finetune ${MODEL_PATH} \
         --log_dir ${OUTPUT_DIR} \
         --output_dir ${OUTPUT_DIR} \
