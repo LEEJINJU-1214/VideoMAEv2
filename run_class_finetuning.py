@@ -318,7 +318,7 @@ def get_args():
         default='Kinetics-400',
         choices=[
             'Kinetics-400', 'Kinetics-600', 'Kinetics-700', 'SSV2', 'UCF101',
-            'HMDB51', 'Diving48', 'Kinetics-710', 'MIT'
+            'HMDB51', 'Diving48', 'Kinetics-710', 'MIT',"Custom_Video", "Custom_Image"
         ],
         type=str,
         help='dataset')
@@ -382,7 +382,7 @@ def get_args():
         default=1,
         type=int,
         help='number of distributed processes')
-    parser.add_argument('--local_rank', default=-1, type=int)
+    parser.add_argument('--local_rank', default=int(os.environ.get("LOCAL_RANK", 0)), type=int)
     parser.add_argument('--dist_on_itp', action='store_true')
     parser.add_argument(
         '--dist_url',
@@ -408,7 +408,6 @@ def main(args, ds_init):
 
     if ds_init is not None:
         utils.create_ds_config(args)
-
     print(args)
 
     device = torch.device(args.device)
@@ -428,7 +427,6 @@ def main(args, ds_init):
         dataset_val, _ = build_dataset(
             is_train=False, test_mode=False, args=args)
     dataset_test, _ = build_dataset(is_train=False, test_mode=True, args=args)
-
     num_tasks = utils.get_world_size()
     global_rank = utils.get_rank()
     sampler_train = torch.utils.data.DistributedSampler(
@@ -918,7 +916,6 @@ def main(args, ds_init):
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
-
 
 if __name__ == '__main__':
     opts, ds_init = get_args()
