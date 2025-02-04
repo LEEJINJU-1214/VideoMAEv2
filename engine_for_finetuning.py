@@ -48,6 +48,7 @@ def train_one_epoch(model: torch.nn.Module,
                     wd_schedule_values=None,
                     num_training_steps_per_epoch=None,
                     update_freq=None):
+
     model.train(True)
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter(
@@ -62,7 +63,6 @@ def train_one_epoch(model: torch.nn.Module,
         model.micro_steps = 0
     else:
         optimizer.zero_grad()
-
     for data_iter_step, (samples, targets, _, _) in enumerate(
             metric_logger.log_every(data_loader, print_freq, header)):
         step = data_iter_step // update_freq
@@ -196,7 +196,11 @@ def validation_one_epoch(data_loader, model, device):
             output = model(images)
             loss = criterion(output, target)
 
-        acc1, acc5 = accuracy(output, target, topk=(1, 5))
+        try:
+            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+        except:
+            acc1, acc5 = accuracy(output, target, topk=(1, 1))
+
 
         batch_size = images.shape[0]
         metric_logger.update(loss=loss.item())
@@ -246,8 +250,11 @@ def final_test(data_loader, model, device, file):
                 str(int(chunk_nb[i].cpu().numpy())),
                 str(int(split_nb[i].cpu().numpy())))
             final_result.append(string)
+        try:
+            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+        except:
+            acc1, acc5 = accuracy(output, target, topk=(1, 1))
 
-        acc1, acc5 = accuracy(output, target, topk=(1, 5))
 
         batch_size = images.shape[0]
         metric_logger.update(loss=loss.item())
