@@ -1,0 +1,7 @@
+repos:
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: "v0.9.1"  # 사용하려는 Ruff 버전 (예: 0.0.281)
+    hooks:
+      - id: ruff
+        name: ruff (lint + fix)
+        args: ["--fix", "--config=pyproject.toml"]

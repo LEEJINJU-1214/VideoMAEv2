@@ -16,16 +16,16 @@ from timm.models.layers import drop_path, to_2tuple, trunc_normal_
 from timm.models.registry import register_model
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 400,
-        'input_size': (3, 224, 224),
-        'pool_size': None,
-        'crop_pct': .9,
-        'interpolation': 'bicubic',
-        'mean': (0.5, 0.5, 0.5),
-        'std': (0.5, 0.5, 0.5),
+        "url": url,
+        "num_classes": 400,
+        "input_size": (3, 224, 224),
+        "pool_size": None,
+        "crop_pct": .9,
+        "interpolation": "bicubic",
+        "mean": (0.5, 0.5, 0.5),
+        "std": (0.5, 0.5, 0.5),
         **kwargs
     }
 
@@ -42,7 +42,7 @@ class DropPath(nn.Module):
         return drop_path(x, self.drop_prob, self.training)
 
     def extra_repr(self) -> str:
-        return 'p={}'.format(self.drop_prob)
+        return "p={}".format(self.drop_prob)
 
 
 class Mlp(nn.Module):
@@ -300,7 +300,7 @@ class PatchEmbed(nn.Module):
 # sin-cos position encoding
 # https://github.com/jadore801120/attention-is-all-you-need-pytorch/blob/master/transformer/Models.py#L31
 def get_sinusoid_encoding_table(n_position, d_hid):
-    ''' Sinusoid position encoding table '''
+    """ Sinusoid position encoding table """
 
     # TODO: make it with torch instead of numpy
     def get_position_angle_vec(position):
@@ -416,12 +416,12 @@ class VisionTransformer(nn.Module):
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        return {'pos_embed', 'cls_token'}
+        return {"pos_embed", "cls_token"}
 
     def get_classifier(self):
         return self.head
 
-    def reset_classifier(self, num_classes, global_pool=''):
+    def reset_classifier(self, num_classes, global_pool=""):
         self.num_classes = num_classes
         self.head = nn.Linear(
             self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
