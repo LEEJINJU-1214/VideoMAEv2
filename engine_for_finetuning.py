@@ -17,7 +17,7 @@ from timm.data import Mixup
 from timm.utils import ModelEma, accuracy
 from scipy.special import softmax
 
-import VideoMAEv2.utils as utils
+import videomaev2.utils as utils
 
 
 def train_class_batch(model, samples, target, criterion):

@@ -10,7 +10,7 @@ from timm.models import create_model
 from torchvision import transforms
 
 # NOTE: Do not comment `import models`, it is used to register models
-import VideoMAEv2.models  # noqa: F401
+import videomaev2.models  # noqa: F401
 from dataset.loader import get_video_loader
 
 

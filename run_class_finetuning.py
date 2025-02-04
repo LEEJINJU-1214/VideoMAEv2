@@ -25,18 +25,18 @@ from timm.utils import ModelEma
 from timm.models import create_model
 from timm.data.mixup import Mixup
 
-import VideoMAEv2.utils as utils
+import videomaev2.utils as utils
 
 # NOTE: Do not comment `import models`, it is used to register models
-import VideoMAEv2.models  # noqa: F401
+import videomaev2.models  # noqa: F401
 from dataset import build_dataset
 from optim_factory import (
     LayerDecayValueAssigner,
     create_optimizer,
     get_parameter_groups,
 )
-from VideoMAEv2.utils import NativeScalerWithGradNormCount as NativeScaler
-from VideoMAEv2.utils import multiple_samples_collate
+from videomaev2.utils import NativeScalerWithGradNormCount as NativeScaler
+from videomaev2.utils import multiple_samples_collate
 from engine_for_finetuning import (
     merge,
     final_test,

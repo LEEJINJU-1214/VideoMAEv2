@@ -12,8 +12,7 @@ from pyparsing import deque
 from timm.models import create_model
 from torchvision import transforms
 
-from VideoMAEv2 import VideoMaeV2
-from VideoMAEv2.config import ModelConfig
+from videomaev2 import VideoMaeV2, ModelConfig
 
 
 def get_args():

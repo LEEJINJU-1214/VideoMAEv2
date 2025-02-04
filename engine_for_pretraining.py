@@ -13,7 +13,7 @@ import torch
 from einops import rearrange
 from timm.data.constants import IMAGENET_DEFAULT_STD, IMAGENET_DEFAULT_MEAN
 
-import VideoMAEv2.utils as utils
+import videomaev2.utils as utils
 
 
 def train_one_epoch(

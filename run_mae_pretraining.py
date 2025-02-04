@@ -21,14 +21,14 @@ import torch.backends.cudnn as cudnn
 from packaging import version
 from timm.models import create_model
 
-import VideoMAEv2.utils as utils
+import videomaev2.utils as utils
 
 # NOTE: Do not comment `import models`, it is used to register models
-import VideoMAEv2.models  # noqa: F401
+import videomaev2.models  # noqa: F401
 from dataset import build_pretraining_dataset
 from optim_factory import create_optimizer
-from VideoMAEv2.utils import NativeScalerWithGradNormCount as NativeScaler
-from VideoMAEv2.utils import multiple_pretrain_samples_collate
+from videomaev2.utils import NativeScalerWithGradNormCount as NativeScaler
+from videomaev2.utils import multiple_pretrain_samples_collate
 from engine_for_pretraining import train_one_epoch
 
 
