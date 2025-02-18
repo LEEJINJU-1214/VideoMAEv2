@@ -80,11 +80,16 @@ class VideoMaeV2(nn.Module):
         """
         super().__init__()
 
+        with open(model_config.label_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        self.label_names: List[str] = [line.strip() for line in lines]
+
+
         self.model = create_model(
             model_config.model,
             img_size=model_config.input_size,
             pretrained=False,
-            num_classes=model_config.num_classes,
+            num_classes=len(self.label_names),
             all_frames=model_config.num_frames,
             tubelet_size=model_config.tubelet_size,
             drop_path_rate=model_config.drop_path_rate,
@@ -100,10 +105,6 @@ class VideoMaeV2(nn.Module):
         self.transform = get_transform(
             (model_config.input_size, model_config.input_size)
         )
-
-        with open(model_config.label_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-        self.label_names: List[str] = [line.strip() for line in lines]
 
         self.softmax = nn.Softmax(dim=1)
         self.model.eval()
