@@ -1,14 +1,15 @@
+import os
+import math
 import time
 import argparse
 from typing import Tuple
 from pathlib import Path
-from collections import OrderedDict
+from collections import Counter, deque
 
 import cv2
 import numpy as np
 import torch
 import torch.nn as nn
-from pyparsing import deque
 from timm.models import create_model
 from torchvision import transforms
 
@@ -80,48 +81,81 @@ def main(args):
     else:
         model.to("cpu")
 
-    cap = cv2.VideoCapture(args.video_path)
-    frame_list = deque(maxlen=args.num_frames)
-    frame_cnt = 0
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        frame_cnt += 1
-        if frame_cnt % 4:  # 7.5fps
-            continue
-        data = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame_list.append(data)
-        if len(frame_list) != frame_list.maxlen:
-            continue
-        frames = model.pre_process(np.array(frame_list))
-        outputs = model(frames)
-        probabilities = model.post_process(outputs)
-        for i in range(7):
-            frame_list.popleft()
+    if os.path.isdir(args.video_path):
+        video_list = [
+            os.path.join(args.video_path, vd)
+            for vd in os.listdir(args.video_path)
+        ]
+    else:
+        video_list = [args.video_path]
 
-        # 특정 값 이상일 때의 확률과 인덱스 구하기
-        threshold = 0.5  # 설정한 임계값
-        mask = probabilities >= threshold
-        filtered_probabilities = probabilities[mask]  # 임계값 이상인 확률
-        filtered_indices = torch.nonzero(mask.flatten())
+    for video in video_list:
+        cap = cv2.VideoCapture(video)
+        frame_list = deque(maxlen=args.num_frames)
+        frame_cnt = 0
 
-        for score, index in zip(filtered_probabilities, filtered_indices):
-            print(model.label_names[index], score, index)
-            cv2.imwrite(
-                args.output_dir
-                + str(frame_cnt)
-                + "_"
-                + model.label_names[index]
-                + "_score:"
-                + str(round(score.item(), 2))
-                + ".jpg",
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        out = cv2.VideoWriter(
+            args.output_dir + video.split("/")[-1], fourcc, 30, (1280, 720)
+        )
+        check_list = deque(maxlen=5)
+        event = "normal"
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frame_cnt += 1
+            if not frame_cnt % 4:  # 7.5fps
+                # continue
+                data = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frame_list.append(data)
+                if len(frame_list) == frame_list.maxlen:
+                    frames = model.pre_process(np.array(frame_list))
+                    outputs = model(frames)
+
+                    probabilities = model.post_process(outputs)
+                    max_indices = torch.argmax(probabilities, dim=1)
+                    max_values = probabilities.gather(
+                        1, max_indices.unsqueeze(1)
+                    ).squeeze(1)
+
+                    if max_values > 0.7:
+                        check_list.append(max_indices)
+                        counter = Counter(check_list)
+                        most_common, _ = counter.most_common(1)[0]
+                        event = model.label_names[most_common]
+
+            cv2.putText(
                 frame,
+                event,
+                (0, 50),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 0, 255),
+                2,
+                cv2.LINE_AA,
             )
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-    cap.release()
-    cv2.destroyAllWindows()
+
+            minutes = math.floor(((frame_cnt / 30) % 3600) / 60)
+            seconds = (frame_cnt / 30) % 60
+
+            cv2.putText(
+                frame,
+                f"{minutes} : {int(seconds)}",
+                (0, 100),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (255, 255, 255),
+                2,
+                cv2.LINE_AA,
+            )
+            out.write(frame)
+
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+        cap.release()
+        out.release()
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
