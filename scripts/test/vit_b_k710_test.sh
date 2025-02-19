@@ -16,7 +16,7 @@ python run_video_test.py \
         --checkpoint_path ${TEST_WEIGHT_PATH} \
         --output_dir ${TEST_OUTPUT_DIR} \
         --drop_path_rate 0.3  \
-        --num_classes 710 \
+        --num_classes 2 \
         --input_size 224 \
         --num_frames 16 \
         --tubelet_size 2 \
