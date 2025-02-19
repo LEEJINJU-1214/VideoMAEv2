@@ -195,7 +195,8 @@ def sharpness(img, factor, **__):
 
 
 def grayscale(img, **kwargs):
-    return ImageOps.grayscale(img)
+    gray_img = img.convert('L')
+    return gray_img.convert('RGB')
 
 
 def _randomly_negate(v):
