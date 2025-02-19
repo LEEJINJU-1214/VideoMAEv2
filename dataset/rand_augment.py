@@ -25,13 +25,13 @@ Papers:
 Hacked together by / Copyright 2020 Ross Wightman
 """
 
+import re
 import math
 import random
-import re
 
-import numpy as np
 import PIL
-from PIL import Image, ImageEnhance, ImageOps
+import numpy as np
+from PIL import Image, ImageOps, ImageEnhance
 
 _PIL_VER = tuple([int(x) for x in PIL.__version__.split(".")[:2]])
 
@@ -65,40 +65,46 @@ def _check_args_tf(kwargs):
 
 def shear_x(img, factor, **kwargs):
     _check_args_tf(kwargs)
-    return img.transform(img.size, Image.AFFINE, (1, factor, 0, 0, 1, 0),
-                         **kwargs)
+    return img.transform(
+        img.size, Image.AFFINE, (1, factor, 0, 0, 1, 0), **kwargs
+    )
 
 
 def shear_y(img, factor, **kwargs):
     _check_args_tf(kwargs)
-    return img.transform(img.size, Image.AFFINE, (1, 0, 0, factor, 1, 0),
-                         **kwargs)
+    return img.transform(
+        img.size, Image.AFFINE, (1, 0, 0, factor, 1, 0), **kwargs
+    )
 
 
 def translate_x_rel(img, pct, **kwargs):
     pixels = pct * img.size[0]
     _check_args_tf(kwargs)
-    return img.transform(img.size, Image.AFFINE, (1, 0, pixels, 0, 1, 0),
-                         **kwargs)
+    return img.transform(
+        img.size, Image.AFFINE, (1, 0, pixels, 0, 1, 0), **kwargs
+    )
 
 
 def translate_y_rel(img, pct, **kwargs):
     pixels = pct * img.size[1]
     _check_args_tf(kwargs)
-    return img.transform(img.size, Image.AFFINE, (1, 0, 0, 0, 1, pixels),
-                         **kwargs)
+    return img.transform(
+        img.size, Image.AFFINE, (1, 0, 0, 0, 1, pixels), **kwargs
+    )
 
 
 def translate_x_abs(img, pixels, **kwargs):
     _check_args_tf(kwargs)
-    return img.transform(img.size, Image.AFFINE, (1, 0, pixels, 0, 1, 0),
-                         **kwargs)
+    return img.transform(
+        img.size, Image.AFFINE, (1, 0, pixels, 0, 1, 0), **kwargs
+    )
 
 
 def translate_y_abs(img, pixels, **kwargs):
     _check_args_tf(kwargs)
-    return img.transform(img.size, Image.AFFINE, (1, 0, 0, 0, 1, pixels),
-                         **kwargs)
+    return img.transform(
+        img.size, Image.AFFINE, (1, 0, 0, 0, 1, pixels), **kwargs
+    )
 
 
 def rotate(img, degrees, **kwargs):
@@ -188,6 +194,11 @@ def sharpness(img, factor, **__):
     return ImageEnhance.Sharpness(img).enhance(factor)
 
 
+def grayscale(img, **kwargs):
+    gray_img = img.convert('L')
+    return gray_img.convert('RGB')
+
+
 def _randomly_negate(v):
     """With 50% prob, negate the value"""
     return -v if random.random() > 0.5 else v
@@ -197,12 +208,12 @@ def _rotate_level_to_arg(level, _hparams):
     # range [-30, 30]
     level = (level / _MAX_LEVEL) * 30.0
     level = _randomly_negate(level)
-    return (level, )
+    return (level,)
 
 
 def _enhance_level_to_arg(level, _hparams):
     # range [0.1, 1.9]
-    return ((level / _MAX_LEVEL) * 1.8 + 0.1, )
+    return ((level / _MAX_LEVEL) * 1.8 + 0.1,)
 
 
 def _enhance_increasing_level_to_arg(level, _hparams):
@@ -210,21 +221,21 @@ def _enhance_increasing_level_to_arg(level, _hparams):
     # range [0.1, 1.9]
     level = (level / _MAX_LEVEL) * 0.9
     level = 1.0 + _randomly_negate(level)
-    return (level, )
+    return (level,)
 
 
 def _shear_level_to_arg(level, _hparams):
     # range [-0.3, 0.3]
     level = (level / _MAX_LEVEL) * 0.3
     level = _randomly_negate(level)
-    return (level, )
+    return (level,)
 
 
 def _translate_abs_level_to_arg(level, hparams):
     translate_const = hparams["translate_const"]
     level = (level / _MAX_LEVEL) * float(translate_const)
     level = _randomly_negate(level)
-    return (level, )
+    return (level,)
 
 
 def _translate_rel_level_to_arg(level, hparams):
@@ -232,51 +243,52 @@ def _translate_rel_level_to_arg(level, hparams):
     translate_pct = hparams.get("translate_pct", 0.45)
     level = (level / _MAX_LEVEL) * translate_pct
     level = _randomly_negate(level)
-    return (level, )
+    return (level,)
 
 
 def _posterize_level_to_arg(level, _hparams):
     # As per Tensorflow TPU EfficientNet impl
     # range [0, 4], 'keep 0 up to 4 MSB of original image'
     # intensity/severity of augmentation decreases with level
-    return (int((level / _MAX_LEVEL) * 4), )
+    return (int((level / _MAX_LEVEL) * 4),)
 
 
 def _posterize_increasing_level_to_arg(level, hparams):
     # As per Tensorflow models research and UDA impl
     # range [4, 0], 'keep 4 down to 0 MSB of original image',
     # intensity/severity of augmentation increases with level
-    return (4 - _posterize_level_to_arg(level, hparams)[0], )
+    return (4 - _posterize_level_to_arg(level, hparams)[0],)
 
 
 def _posterize_original_level_to_arg(level, _hparams):
     # As per original AutoAugment paper description
     # range [4, 8], 'keep 4 up to 8 MSB of image'
     # intensity/severity of augmentation decreases with level
-    return (int((level / _MAX_LEVEL) * 4) + 4, )
+    return (int((level / _MAX_LEVEL) * 4) + 4,)
 
 
 def _solarize_level_to_arg(level, _hparams):
     # range [0, 256]
     # intensity/severity of augmentation decreases with level
-    return (int((level / _MAX_LEVEL) * 256), )
+    return (int((level / _MAX_LEVEL) * 256),)
 
 
 def _solarize_increasing_level_to_arg(level, _hparams):
     # range [0, 256]
     # intensity/severity of augmentation increases with level
-    return (256 - _solarize_level_to_arg(level, _hparams)[0], )
+    return (256 - _solarize_level_to_arg(level, _hparams)[0],)
 
 
 def _solarize_add_level_to_arg(level, _hparams):
     # range [0, 110]
-    return (int((level / _MAX_LEVEL) * 110), )
+    return (int((level / _MAX_LEVEL) * 110),)
 
 
 LEVEL_TO_ARG = {
     "AutoContrast": None,
     "Equalize": None,
     "Invert": None,
+    "Grayscale": None,
     "Rotate": _rotate_level_to_arg,
     # There are several variations of the posterize level scaling in various Tensorflow/Google repositories/papers
     "Posterize": _posterize_level_to_arg,
@@ -326,6 +338,7 @@ NAME_TO_OP = {
     "TranslateY": translate_y_abs,
     "TranslateXRel": translate_x_rel,
     "TranslateYRel": translate_y_rel,
+    "Grayscale": grayscale,
 }
 
 
@@ -342,11 +355,12 @@ class AugmentOp:
         self.magnitude = magnitude
         self.hparams = hparams.copy()
         self.kwargs = {
-            "fillcolor":
-            hparams["img_mean"] if "img_mean" in hparams else _FILL,
-            "resample":
-            hparams["interpolation"]
-            if "interpolation" in hparams else _RANDOM_INTERPOLATION,
+            "fillcolor": hparams["img_mean"]
+            if "img_mean" in hparams
+            else _FILL,
+            "resample": hparams["interpolation"]
+            if "interpolation" in hparams
+            else _RANDOM_INTERPOLATION,
         }
 
         # If magnitude_std is > 0, we introduce some randomness
@@ -364,7 +378,9 @@ class AugmentOp:
         magnitude = min(_MAX_LEVEL, max(0, magnitude))  # clip to valid range
         level_args = (
             self.level_fn(magnitude, self.hparams)
-            if self.level_fn is not None else ())
+            if self.level_fn is not None
+            else ()
+        )
 
         if isinstance(img_list, list):
             return [
@@ -391,6 +407,7 @@ _RAND_TRANSFORMS = [
     "ShearY",
     "TranslateXRel",
     "TranslateYRel",
+    "Grayscale",
 ]
 
 _RAND_INCREASING_TRANSFORMS = [
@@ -409,6 +426,7 @@ _RAND_INCREASING_TRANSFORMS = [
     "ShearY",
     "TranslateXRel",
     "TranslateYRel",
+    "Grayscale",
 ]
 
 # These experimental weights are based loosely on the relative improvements mentioned in paper.
@@ -417,8 +435,8 @@ _RAND_CHOICE_WEIGHTS_0 = {
     "Rotate": 0.3,
     "ShearX": 0.2,
     "ShearY": 0.2,
-    "TranslateXRel": 0.1,
-    "TranslateYRel": 0.1,
+    "TranslateXRel": 0.05,
+    "TranslateYRel": 0.05,
     "Color": 0.025,
     "Sharpness": 0.025,
     "AutoContrast": 0.025,
@@ -429,6 +447,7 @@ _RAND_CHOICE_WEIGHTS_0 = {
     "Equalize": 0.005,
     "Posterize": 0,
     "Invert": 0,
+    "Grayscale": 0.1,
 }
 
 
@@ -451,7 +470,6 @@ def rand_augment_ops(magnitude=10, hparams=None, transforms=None):
 
 
 class RandAugment:
-
     def __init__(self, ops, num_layers=2, choice_weights=None):
         self.ops = ops
         self.num_layers = num_layers
@@ -488,7 +506,9 @@ def rand_augment_transform(config_str, hparams):
     :param hparams: Other hparams (kwargs) for the RandAugmentation scheme
     :return: A PyTorch compatible Transform
     """
-    magnitude = _MAX_LEVEL  # default to _MAX_LEVEL for magnitude (currently 10)
+    magnitude = (
+        _MAX_LEVEL  # default to _MAX_LEVEL for magnitude (currently 10)
+    )
     num_layers = 2  # default to 2 ops per image
     weight_idx = None  # default to no probability weights for op choice
     transforms = _RAND_TRANSFORMS
@@ -515,7 +535,9 @@ def rand_augment_transform(config_str, hparams):
         else:
             assert NotImplementedError
     ra_ops = rand_augment_ops(
-        magnitude=magnitude, hparams=hparams, transforms=transforms)
-    choice_weights = (None if weight_idx is None else
-                      _select_rand_weights(weight_idx))
+        magnitude=magnitude, hparams=hparams, transforms=transforms
+    )
+    choice_weights = (
+        None if weight_idx is None else _select_rand_weights(weight_idx)
+    )
     return RandAugment(ra_ops, num_layers, choice_weights=choice_weights)

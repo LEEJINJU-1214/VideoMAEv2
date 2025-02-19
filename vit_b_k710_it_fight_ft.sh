@@ -24,7 +24,7 @@ OMP_NUM_THREADS=1 torchrun --nproc_per_node=${GPUS_PER_NODE} \
         --finetune ${MODEL_PATH} \
         --log_dir ${OUTPUT_DIR} \
         --output_dir ${OUTPUT_DIR} \
-        --batch_size 3 \
+        --batch_size 1 \
         --input_size 224 \
         --short_side_size 224 \
         --save_ckpt_freq 10 \

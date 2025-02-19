@@ -1,117 +1,140 @@
 import os
-import cv2
+
+import pandas as pd
+from dotenv import load_dotenv
 from sklearn.model_selection import train_test_split
-from concurrent.futures import ThreadPoolExecutor
+
+load_dotenv(verbose=True)
 # 데이터 경로 설정
-data_root = "/media/bom/8tb_SSD/fight"
-output_image_root = "/media/bom/8tb_SSD/fight_images/"
-output_csv_root = "data/fight/"
-os.makedirs(output_image_root, exist_ok=True)
-os.makedirs(output_csv_root, exist_ok=True)
+
+DATA_ROOT = os.getenv("DATA_PATH")
+OUTPUT_CSV_ROOT = os.getenv("TRAIN_CSV_DIR")
+os.makedirs(OUTPUT_CSV_ROOT, exist_ok=True)
+
+
+with open(os.getenv("LABEL_DIR"), "r", encoding="utf-8") as f:
+    lines = f.readlines()
+label_names = [line.strip() for line in lines]
 
 train_csv = "train.csv"
 valid_csv = "val.csv"
 test_csv = "test.csv"
+
 random_state = 42
 
-save_frame = 64
+Data = {
+    "video_path": [],
+    "total_frames": [],
+    "label": [],
+    "video_name": [],
+    "time": [],
+    "season": [],
+    "strat_col": [],
+}
 
-# 비디오 파일에서 이미지를 추출하여 저장
-def extract_images_from_video(video_path, output_dir):
-    cap = cv2.VideoCapture(video_path)
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    count = 0
-    folder_count = 0
-    extracted_folders = []
+Min_Frame = 64
+Max_Frame = 100
 
-    save_cnt = frame_count // save_frame
+save_col = ["label", "season", "time", "strat_col", "video_name"]
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        os.makedirs(output_dir, exist_ok=True)
-        
-
-        if count % save_frame == 0:
-            if folder_count==save_cnt:
-                break
-
-            folder_name = f"folder_{folder_count:03d}"
-            current_folder = os.path.join(output_dir, folder_name)
-            if current_folder not in extracted_folders:
-                os.makedirs(current_folder, exist_ok=True)
-                extracted_folders.append(current_folder)
-            folder_count += 1
-            count = 0
-
-        # 이미지 저장
-        image_name = f"img_{count+1:05d}.jpg"
-        image_path = os.path.join(current_folder, image_name)
-        cv2.imwrite(image_path, frame)
-
-        count += 1
-
-    cap.release()
-    return extracted_folders
-
-# 비디오 파일 수집 및 이미지 저장, 클래스 번호 매기기
-def collect_video_files_and_save_images(data_root, output_image_root):
-    video_files = []
-
-    def process_video(file_path, label):
-        # 이미지 저장 경로 생성
-        output_dir = os.path.join(output_image_root, os.path.splitext(os.path.basename(file_path))[0])
-
-        # 이미지 추출 및 저장
-        folder_paths = extract_images_from_video(file_path, output_dir)
-        return [(folder_path,save_frame, label) for folder_path in folder_paths]
-
-    tasks = []
-    with ThreadPoolExecutor() as executor:
-        for root, _, files in os.walk(data_root):
-            for file in files:
-                if file.endswith(".mp4"):  # MP4 파일만 포함
-                    file_path = os.path.join(root, file)
-                    label = 0 if "nomal" in file else 1
-                    tasks.append(executor.submit(process_video, file_path, label))
-
-        for task in tasks:
-            video_files.extend(task.result())
-
-    return video_files
 
 # 데이터를 train/valid/test로 분할
-def split_data(video_files, train_ratio=0.7, valid_ratio=0.2):
+def split_data(dataframe, train_ratio=0.7, valid_ratio=0.2):
     train_data, temp_data = train_test_split(
-        video_files,
+        dataframe,
         test_size=(1 - train_ratio),
         random_state=random_state,
+        stratify=dataframe["strat_col"],
     )
     valid_data, test_data = train_test_split(
         temp_data,
         test_size=(1 - valid_ratio / (1 - train_ratio)),
         random_state=random_state,
+        stratify=temp_data["strat_col"],
     )
-    return train_data, valid_data, test_data
+    return (
+        train_data,
+        valid_data,
+        test_data,
+    )
+
 
 # 스페이스바로 구분된 파일 생성
 def write_space_separated(file_path, data):
-    with open(file_path, mode="w", encoding="utf-8") as file:
-        for row in data:
-            file.write(f"{row[0]} {row[1]} {row[2]}\n")
+    data.to_csv(
+        file_path,
+        columns=["video_path", "total_frames", "label"],
+        index=False,
+        header=False,
+        sep=" ",
+    )
+
+
+def save_plot(file_path, train_data, valid_data, test_data, attribute):
+    import matplotlib.pyplot as plt
+
+    train_counts = train_data[attribute].value_counts(normalize=True)
+    valid_counts = valid_data[attribute].value_counts(normalize=True)
+    test_counts = test_data[attribute].value_counts(normalize=True)
+
+    # 예: 막대 그래프 여러 개로 비교
+    fig, axes = plt.subplots(1, 3, figsize=(16, 4), sharey=True)
+
+    train_counts.plot(kind="bar", ax=axes[0], title="Train attribute dist")
+    valid_counts.plot(kind="bar", ax=axes[1], title="Valid attribute dist")
+    test_counts.plot(kind="bar", ax=axes[2], title="Test attribute dist")
+
+    plt.tight_layout()
+    plt.savefig(
+        os.path.join(OUTPUT_CSV_ROOT, f"train_test_split_{attribute}.png"),
+        bbox_inches="tight",
+    )
+
 
 # 실행
 if __name__ == "__main__":
-    # 비디오 파일 수집 및 이미지 저장
-    video_files = collect_video_files_and_save_images(data_root, output_image_root)
-
     # 데이터를 train, valid, test로 분할
-    train_data, valid_data, test_data = split_data(video_files)
+    for root, dirs, files in os.walk(DATA_ROOT):
+        video_path = root.split("/")
+        if (
+            len(os.listdir(root)) < Min_Frame
+            or len(os.listdir(root)) > Max_Frame
+        ):
+            continue
+        video_event = video_path[-1].split("_")[0]
+        label = label_names.index(video_event)
+        Data["label"].append(label)
+        Data["video_path"].append(root)
+        Data["season"].append(video_path[-2].split("_")[-1])
+        Data["time"].append(video_path[-2].split("_")[-2])
+        Data["video_name"].append(video_path[-2].split("-")[0])
+        Data["total_frames"].append(len(os.listdir(root)))
+
+        Data["strat_col"].append(
+            "_".join(
+                [
+                    video_path[-2].split("_")[4],
+                    video_path[-2].split("_")[5],
+                ]
+            )
+            + "_"
+            + str(label)
+        )
+
+    data_frame = pd.DataFrame(Data)
+    train_data, valid_data, test_data = split_data(data_frame)
 
     # 각각의 데이터를 스페이스로 구분된 파일로 저장
-    write_space_separated(os.path.join(output_csv_root, train_csv), train_data)
-    write_space_separated(os.path.join(output_csv_root, valid_csv), valid_data)
-    write_space_separated(os.path.join(output_csv_root, test_csv), test_data)
+    for csv, split_data in zip(
+        [train_csv, valid_csv, test_csv], [train_data, valid_data, test_data]
+    ):
+        write_space_separated(os.path.join(OUTPUT_CSV_ROOT, csv), split_data)
 
     print(f"파일 생성 완료:\n- {train_csv}\n- {valid_csv}\n- {test_csv}")
+    data_frame.to_csv(
+        os.path.join(OUTPUT_CSV_ROOT, "all_data.csv"), index=False
+    )
+    for attribute in save_col:
+        save_plot(
+            OUTPUT_CSV_ROOT, train_data, valid_data, test_data, attribute
+        )
