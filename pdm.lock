@@ -5,7 +5,7 @@
 groups = ["default"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:f1d281d423e627f87534ca9346f4c22fc219eb75f9e3bbc615dabb19a32f066b"
+content_hash = "sha256:59c1b86d0d9a24f33f26efc99ff7ca0d6865a3a2471bb47e3e30e2d6333269c4"
 
 [[metadata.targets]]
 requires_python = "==3.8.*"
@@ -763,6 +763,17 @@ marker = "python_version == \"3.8\""
 files = [
     {file = "nodeenv-1.9.1-py2.py3-none-any.whl", hash = "sha256:ba11c9782d29c27c70ffbdda2d7415098754709be8a7056d79a737cd901155c9"},
     {file = "nodeenv-1.9.1.tar.gz", hash = "sha256:6ec12890a2dab7946721edbfbcd91f3319c6ccc9aec47be7c7e6b7011ee6645f"},
+]
+
+[[package]]
+name = "noise"
+version = "1.2.2"
+summary = "Perlin noise for Python"
+groups = ["default"]
+marker = "python_version == \"3.8\""
+files = [
+    {file = "noise-1.2.2.tar.gz", hash = "sha256:57a2797436574391ff63a111e852e53a4164ecd81ad23639641743cd1a209b65"},
+    {file = "noise-1.2.2.zip", hash = "sha256:36036cdaca131ddd2ab4397fba649af7f074ec08031e1e0a51031d0ae23b509a"},
 ]
 
 [[package]]

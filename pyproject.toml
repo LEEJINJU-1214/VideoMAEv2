@@ -32,6 +32,7 @@ dependencies = [
     "diffusers>=0.32.2",
     "moviepy>=1.0.3",
     "accelerate>=1.0.1",
+    "noise>=1.2.2",
 ]
 requires-python = ">=3.8"
 readme = "README.md"
