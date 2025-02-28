@@ -30,8 +30,9 @@ import math
 import random
 
 import PIL
+import noise
 import numpy as np
-from PIL import Image, ImageOps, ImageEnhance
+from PIL import Image, ImageOps, ImageFilter, ImageEnhance
 
 _PIL_VER = tuple([int(x) for x in PIL.__version__.split(".")[:2]])
 
@@ -195,7 +196,109 @@ def sharpness(img, factor, **__):
 
 
 def grayscale(img, **kwargs):
-    return ImageOps.grayscale(img)
+    gray_img = img.convert("L")
+    return gray_img.convert("RGB")
+
+
+def blur(img, factor, **__):
+    return img.filter(ImageFilter.GaussianBlur(factor))
+
+
+def perspective(img, magnitude, **kwargs):
+    width, height = img.size
+
+    # 4점 랜덤 이동
+    def rand_offset():
+        return int(magnitude * random.uniform(-1, 1))
+
+    src_pts = [(0, 0), (width, 0), (width, height), (0, height)]
+    dst_pts = [
+        (rand_offset(), rand_offset()),
+        (width + rand_offset(), rand_offset()),
+        (width + rand_offset(), height + rand_offset()),
+        (rand_offset(), height + rand_offset()),
+    ]
+
+    coeffs = _find_perspective_coeffs(src_pts, dst_pts)
+    return img.transform(
+        img.size, Image.PERSPECTIVE, coeffs, resample=Image.BILINEAR
+    )
+
+
+def _find_perspective_coeffs(src, dst):
+    matrix = []
+    for p1, p2 in zip(src, dst):
+        matrix.append(
+            [p1[0], p1[1], 1, 0, 0, 0, -p2[0] * p1[0], -p2[0] * p1[1]]
+        )
+        matrix.append(
+            [0, 0, 0, p1[0], p1[1], 1, -p2[1] * p1[0], -p2[1] * p1[1]]
+        )
+
+    A = np.array(matrix, dtype=np.float32)
+    B = np.array(dst).reshape(8)
+
+    res = np.linalg.solve(A, B)
+    return np.append(res, 1).tolist()
+
+
+def generate_city_haze_noise(
+    width, height, scale=40, octaves=6, persistence=0.55, lacunarity=2.2
+):
+    noise_map = np.zeros((height, width), dtype=np.float32)
+    for y in range(height):
+        for x in range(width):
+            nx, ny = x / scale, y / scale
+            base_noise = noise.snoise3(
+                nx,
+                ny,
+                random.random(),
+                octaves=octaves,
+                persistence=persistence,
+                lacunarity=lacunarity,
+            )
+            vertical_grad = y / height  # 높이 올라갈수록 안개 진해지는 효과
+            noise_map[y, x] = base_noise * 0.5 + vertical_grad * 0.5
+
+    noise_map = (noise_map - noise_map.min()) / (
+        noise_map.max() - noise_map.min()
+    )
+    return (noise_map * 255).astype(np.uint8)
+
+
+def haze(img, magnitude=10, **kwargs):
+    width, height = img.size
+
+    # 노이즈 + 그라데이션 안개 생성
+    noise_img = generate_city_haze_noise(
+        width, height, scale=50 - magnitude * 3
+    )
+
+    # 부드럽게 만들기 위해 Gaussian Blur
+    noise_img = Image.fromarray(noise_img).filter(
+        ImageFilter.GaussianBlur(radius=7)
+    )
+
+    # 안개 컬러 (도심 CCTV 특성 반영, 푸른빛 + 회색 계열)
+    haze_color = (
+        200,
+        205 + random.randint(-5, 5),
+        210 + random.randint(-5, 5),
+    )
+
+    haze_layer = Image.new("RGB", img.size, haze_color)
+    haze_layer = Image.composite(haze_layer, img, noise_img)
+
+    # 안개 투명도 (시간대/환경 따라 조절 가능)
+    alpha = min(0.85, max(0.3, magnitude / _MAX_LEVEL))
+
+    # 원본과 안개 합성
+    blended = Image.blend(img, haze_layer, alpha)
+
+    # CCTV 특유의 흐릿한 느낌 추가
+    blended = blended.filter(ImageFilter.GaussianBlur(radius=0.5))
+
+    return blended
 
 
 def _randomly_negate(v):
@@ -283,11 +386,29 @@ def _solarize_add_level_to_arg(level, _hparams):
     return (int((level / _MAX_LEVEL) * 110),)
 
 
+def _blur_level_to_arg(level, _hparams):
+    # range [0, 4], 'keep 0 up to 5 MSB of original image'
+    return (int((level / _MAX_LEVEL) * 3),)
+
+
+def _perspective_level_to_arg(level, _hparams):
+    # range [50, 100], 'keep 0 up to 5 MSB of original image'
+    return (int((level / _MAX_LEVEL) * 50) + 50,)
+
+
+def _haze_level_to_arg(level, _hparams):
+    # range [10, 50], 'keep 0 up to 5 MSB of original image'
+    return (int((level / _MAX_LEVEL) * 40) + 10,)
+
+
 LEVEL_TO_ARG = {
     "AutoContrast": None,
     "Equalize": None,
     "Invert": None,
     "Grayscale": None,
+    "Blur": _blur_level_to_arg,
+    "Perspective": _perspective_level_to_arg,
+    "Haze": _haze_level_to_arg,
     "Rotate": _rotate_level_to_arg,
     # There are several variations of the posterize level scaling in various Tensorflow/Google repositories/papers
     "Posterize": _posterize_level_to_arg,
@@ -338,6 +459,9 @@ NAME_TO_OP = {
     "TranslateXRel": translate_x_rel,
     "TranslateYRel": translate_y_rel,
     "Grayscale": grayscale,
+    "Blur": blur,
+    "Perspective": perspective,
+    "Haze": haze,
 }
 
 
@@ -407,6 +531,9 @@ _RAND_TRANSFORMS = [
     "TranslateXRel",
     "TranslateYRel",
     "Grayscale",
+    "Blur",
+    "Perspective",
+    "Haze",
 ]
 
 _RAND_INCREASING_TRANSFORMS = [
@@ -426,27 +553,33 @@ _RAND_INCREASING_TRANSFORMS = [
     "TranslateXRel",
     "TranslateYRel",
     "Grayscale",
+    "Blur",
+    "Perspective",
+    "Haze",
 ]
 
 # These experimental weights are based loosely on the relative improvements mentioned in paper.
 # They may not result in increased performance, but could likely be tuned to so.
 _RAND_CHOICE_WEIGHTS_0 = {
-    "Rotate": 0.3,
-    "ShearX": 0.2,
-    "ShearY": 0.2,
+    "Rotate": 0.2,
+    "ShearX": 0.15,
+    "ShearY": 0.15,
     "TranslateXRel": 0.05,
     "TranslateYRel": 0.05,
     "Color": 0.025,
     "Sharpness": 0.025,
     "AutoContrast": 0.025,
     "Solarize": 0.005,
-    "SolarizeAdd": 0.005,
+    "SolarizeAdd": 0.0025,
     "Contrast": 0.005,
     "Brightness": 0.005,
     "Equalize": 0.005,
     "Posterize": 0,
     "Invert": 0,
     "Grayscale": 0.1,
+    "Blur": 0.0025,
+    "Perspective": 0.15,
+    "Haze": 0.05,
 }
 
 
