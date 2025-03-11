@@ -3,8 +3,9 @@ import re
 import shutil
 import asyncio
 import subprocess
-from xml.etree import ElementTree as ET
 from typing import Union
+from xml.etree import ElementTree as ET
+
 import numpy as np
 from dotenv import load_dotenv
 
@@ -165,7 +166,9 @@ def merge_intervals(intervals: list) -> tuple[list, list]:
     return merged, merged_with_overlap
 
 
-def get_min_start_max_end(intervals: list) -> tuple[Union[int, None], Union[int, None]]:
+def get_min_start_max_end(
+    intervals: list,
+) -> tuple[Union[int, None], Union[int, None]]:
     """
     병합된 구간 리스트에서 가장 작은 start 프레임과 가장 큰 end 프레임을 반환.
     Args:

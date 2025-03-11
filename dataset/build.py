@@ -7,9 +7,11 @@
 # --------------------------------------------------------'
 import os
 
-from .datasets import RawFrameClsDataset, VideoClsDataset
+from .datasets import VideoClsDataset, RawFrameClsDataset
 from .pretrain_datasets import (  # noqa: F401
-    DataAugmentationForVideoMAEv2, HybridVideoMAE, VideoMAE,
+    VideoMAE,
+    HybridVideoMAE,
+    DataAugmentationForVideoMAEv2,
 )
 
 
@@ -21,9 +23,9 @@ def build_pretraining_dataset(args):
         train=True,
         test_mode=False,
         name_pattern=args.fname_tmpl,
-        video_ext='mp4',
+        video_ext="mp4",
         is_color=True,
-        modality='rgb',
+        modality="rgb",
         num_segments=1,
         num_crop=1,
         new_length=args.num_frames,
@@ -31,23 +33,24 @@ def build_pretraining_dataset(args):
         transform=transform,
         temporal_jitter=False,
         lazy_init=False,
-        num_sample=args.num_sample)
+        num_sample=args.num_sample,
+    )
     print("Data Aug = %s" % str(transform))
     return dataset
 
 
 def build_dataset(is_train, test_mode, args):
     if is_train:
-        mode = 'train'
-        anno_path = os.path.join(args.data_path, 'train.csv')
+        mode = "train"
+        anno_path = os.path.join(args.data_path, "train.csv")
     elif test_mode:
-        mode = 'test'
-        anno_path = os.path.join(args.data_path, 'val.csv')
+        mode = "test"
+        anno_path = os.path.join(args.data_path, "val.csv")
     else:
-        mode = 'validation'
-        anno_path = os.path.join(args.data_path, 'val.csv')
+        mode = "validation"
+        anno_path = os.path.join(args.data_path, "val.csv")
 
-    if args.data_set == 'Kinetics-400':
+    if args.data_set == "Kinetics-400":
         if not args.sparse_sample:
             dataset = VideoClsDataset(
                 anno_path=anno_path,
@@ -65,7 +68,8 @@ def build_dataset(is_train, test_mode, args):
                 new_height=256,
                 new_width=320,
                 sparse_sample=False,
-                args=args)
+                args=args,
+            )
         else:
             dataset = VideoClsDataset(
                 anno_path=anno_path,
@@ -83,10 +87,11 @@ def build_dataset(is_train, test_mode, args):
                 new_height=256,
                 new_width=320,
                 sparse_sample=True,
-                args=args)
+                args=args,
+            )
         nb_classes = 400
 
-    elif args.data_set == 'Kinetics-600':
+    elif args.data_set == "Kinetics-600":
         dataset = VideoClsDataset(
             anno_path=anno_path,
             data_root=args.data_root,
@@ -102,10 +107,11 @@ def build_dataset(is_train, test_mode, args):
             short_side_size=args.short_side_size,
             new_height=256,
             new_width=320,
-            args=args)
+            args=args,
+        )
         nb_classes = 600
 
-    elif args.data_set == 'Kinetics-700':
+    elif args.data_set == "Kinetics-700":
         dataset = VideoClsDataset(
             anno_path=anno_path,
             data_root=args.data_root,
@@ -121,10 +127,11 @@ def build_dataset(is_train, test_mode, args):
             short_side_size=args.short_side_size,
             new_height=256,
             new_width=320,
-            args=args)
+            args=args,
+        )
         nb_classes = 700
 
-    elif args.data_set == 'Kinetics-710':
+    elif args.data_set == "Kinetics-710":
         dataset = VideoClsDataset(
             anno_path=anno_path,
             data_root=args.data_root,
@@ -140,10 +147,11 @@ def build_dataset(is_train, test_mode, args):
             short_side_size=args.short_side_size,
             new_height=256,
             new_width=320,
-            args=args)
+            args=args,
+        )
         nb_classes = 710
 
-    elif args.data_set == 'SSV2':
+    elif args.data_set == "SSV2":
         dataset = RawFrameClsDataset(
             anno_path=anno_path,
             data_root=args.data_root,
@@ -160,11 +168,12 @@ def build_dataset(is_train, test_mode, args):
             new_width=320,
             filename_tmpl=args.fname_tmpl,
             start_idx=args.start_idx,
-            args=args)
+            args=args,
+        )
 
         nb_classes = 174
 
-    elif args.data_set == 'UCF101':
+    elif args.data_set == "UCF101":
         dataset = VideoClsDataset(
             anno_path=anno_path,
             data_root=args.data_root,
@@ -180,10 +189,11 @@ def build_dataset(is_train, test_mode, args):
             short_side_size=args.short_side_size,
             new_height=256,
             new_width=320,
-            args=args)
+            args=args,
+        )
         nb_classes = 101
 
-    elif args.data_set == 'HMDB51':
+    elif args.data_set == "HMDB51":
         dataset = VideoClsDataset(
             anno_path=anno_path,
             data_root=args.data_root,
@@ -199,10 +209,11 @@ def build_dataset(is_train, test_mode, args):
             short_side_size=args.short_side_size,
             new_height=256,
             new_width=320,
-            args=args)
+            args=args,
+        )
         nb_classes = 51
 
-    elif args.data_set == 'Diving48':
+    elif args.data_set == "Diving48":
         dataset = VideoClsDataset(
             anno_path=anno_path,
             data_root=args.data_root,
@@ -218,9 +229,10 @@ def build_dataset(is_train, test_mode, args):
             short_side_size=args.short_side_size,
             new_height=256,
             new_width=320,
-            args=args)
+            args=args,
+        )
         nb_classes = 48
-    elif args.data_set == 'MIT':
+    elif args.data_set == "MIT":
         if not args.sparse_sample:
             dataset = VideoClsDataset(
                 anno_path=anno_path,
@@ -238,7 +250,8 @@ def build_dataset(is_train, test_mode, args):
                 new_height=256,
                 new_width=320,
                 sparse_sample=False,
-                args=args)
+                args=args,
+            )
         else:
             dataset = VideoClsDataset(
                 anno_path=anno_path,
@@ -256,9 +269,10 @@ def build_dataset(is_train, test_mode, args):
                 new_height=256,
                 new_width=320,
                 sparse_sample=True,
-                args=args)
+                args=args,
+            )
         nb_classes = 339
-    elif args.data_set == 'Custom_Video':
+    elif args.data_set == "Custom_Video":
         dataset = VideoClsDataset(
             anno_path=anno_path,
             data_root=args.data_root,
@@ -274,9 +288,10 @@ def build_dataset(is_train, test_mode, args):
             short_side_size=args.short_side_size,
             new_height=256,
             new_width=320,
-            args=args)
+            args=args,
+        )
         nb_classes = args.nb_classes
-    elif args.data_set == 'Custom_Image':
+    elif args.data_set == "Custom_Image":
         dataset = RawFrameClsDataset(
             anno_path=anno_path,
             data_root=args.data_root,
@@ -293,10 +308,11 @@ def build_dataset(is_train, test_mode, args):
             new_width=320,
             filename_tmpl=args.fname_tmpl,
             start_idx=args.start_idx,
-            args=args)
+            args=args,
+        )
         nb_classes = args.nb_classes
     else:
-        raise NotImplementedError('Unsupported Dataset')
+        raise NotImplementedError("Unsupported Dataset")
 
     assert nb_classes == args.nb_classes
     print("Number of the class = %d" % args.nb_classes)
