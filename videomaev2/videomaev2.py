@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 from timm.models import create_model
-from torchvision import transforms
 
 from .utils import (  # utils.load_state_dict()에서 사용
     get_transform,
@@ -83,7 +82,6 @@ class VideoMaeV2(nn.Module):
         with open(model_config.label_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
         self.label_names: List[str] = [line.strip() for line in lines]
-
 
         self.model = create_model(
             model_config.model,
