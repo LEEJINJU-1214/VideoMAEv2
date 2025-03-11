@@ -40,13 +40,16 @@ def get_image_loader(use_petrel_backend: bool = True,
     def _loader(frame_path):
         if _client is not None and 's3:' in frame_path:
             img_bytes = _client.get(frame_path)
+        elif frame_path.endswith('npy'):
+            img = np.load(frame_path)
+            cv2.cvtColor(img, cv2.COLOR_BGR2RGB, img)
         else:
             with open(frame_path, 'rb') as f:
                 img_bytes = f.read()
-
-        img_np = np.frombuffer(img_bytes, np.uint8)
-        img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
-        cv2.cvtColor(img, cv2.COLOR_BGR2RGB, img)
+            img_np = np.frombuffer(img_bytes, np.uint8)
+            img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
+            cv2.cvtColor(img, cv2.COLOR_BGR2RGB, img)
         return img
 
     return _loader
+

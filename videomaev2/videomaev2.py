@@ -89,7 +89,7 @@ class VideoMaeV2(nn.Module):
             model_config.model,
             img_size=model_config.input_size,
             pretrained=False,
-            num_classes=len(self.label_names),
+            num_classes=model_config.num_classes,
             all_frames=model_config.num_frames,
             tubelet_size=model_config.tubelet_size,
             drop_path_rate=model_config.drop_path_rate,

@@ -537,7 +537,7 @@ def main(args, ds_init):
         pin_memory=args.pin_mem,
         drop_last=True,
         collate_fn=collate_func,
-        persistent_workers=True,
+        persistent_workers= True,
     )
 
     if dataset_val is not None:
@@ -566,6 +566,8 @@ def main(args, ds_init):
     else:
         data_loader_test = None
 
+    if args.distributed:
+        data_loader_train.sampler.set_epoch(0)
     mixup_fn = None
     mixup_active = (
         args.mixup > 0 or args.cutmix > 0.0 or args.cutmix_minmax is not None
@@ -851,7 +853,7 @@ def main(args, ds_init):
     else:
         if args.distributed:
             model = torch.nn.parallel.DistributedDataParallel(
-                model, device_ids=[args.gpu], find_unused_parameters=False
+                model, device_ids=[args.gpu], find_unused_parameters=True
             )
             model_without_ddp = model.module
 
