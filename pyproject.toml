@@ -62,7 +62,7 @@ indent-style = "space"
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "B", "Q", "N", "I"]
-ignore = ["F401", "F403", "F405","B007","N806","E722","N812","N999"]
+ignore = ["F401", "F403", "F405","B007","N806","E722","N812","N999","N801"]
 
 [tool.ruff.lint.isort]
 length-sort = true

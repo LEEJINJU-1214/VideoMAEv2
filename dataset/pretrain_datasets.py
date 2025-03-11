@@ -7,52 +7,58 @@ from PIL import Image
 from torchvision import transforms
 
 from .loader import get_image_loader, get_video_loader
-from .masking_generator import (
-    RunningCellMaskingGenerator,
-    TubeMaskingGenerator,
-)
 from .transforms import (
-    GroupMultiScaleCrop,
-    GroupNormalize,
     Stack,
+    GroupNormalize,
+    GroupMultiScaleCrop,
     ToTorchFormatTensor,
+)
+from .masking_generator import (
+    TubeMaskingGenerator,
+    RunningCellMaskingGenerator,
 )
 
 
 class DataAugmentationForVideoMAEv2(object):
-
     def __init__(self, args):
         self.input_mean = [0.485, 0.456, 0.406]
         self.input_std = [0.229, 0.224, 0.225]
         div = True
         roll = False
         normalize = GroupNormalize(self.input_mean, self.input_std)
-        self.train_augmentation = GroupMultiScaleCrop(args.input_size,
-                                                      [1, .875, .75, .66])
-        self.transform = transforms.Compose([
-            self.train_augmentation,
-            Stack(roll=roll),
-            ToTorchFormatTensor(div=div),
-            normalize,
-        ])
-        if args.mask_type == 'tube':
+        self.train_augmentation = GroupMultiScaleCrop(
+            args.input_size, [1, 0.875, 0.75, 0.66]
+        )
+        self.transform = transforms.Compose(
+            [
+                self.train_augmentation,
+                Stack(roll=roll),
+                ToTorchFormatTensor(div=div),
+                normalize,
+            ]
+        )
+        if args.mask_type == "tube":
             self.encoder_mask_map_generator = TubeMaskingGenerator(
-                args.window_size, args.mask_ratio)
+                args.window_size, args.mask_ratio
+            )
         else:
             raise NotImplementedError(
-                'Unsupported encoder masking strategy type.')
-        if args.decoder_mask_ratio > 0.:
-            if args.decoder_mask_type == 'run_cell':
+                "Unsupported encoder masking strategy type."
+            )
+        if args.decoder_mask_ratio > 0.0:
+            if args.decoder_mask_type == "run_cell":
                 self.decoder_mask_map_generator = RunningCellMaskingGenerator(
-                    args.window_size, args.decoder_mask_ratio)
+                    args.window_size, args.decoder_mask_ratio
+                )
             else:
                 raise NotImplementedError(
-                    'Unsupported decoder masking strategy type.')
+                    "Unsupported decoder masking strategy type."
+                )
 
     def __call__(self, images):
         process_data, _ = self.transform(images)
         encoder_mask_map = self.encoder_mask_map_generator()
-        if hasattr(self, 'decoder_mask_map_generator'):
+        if hasattr(self, "decoder_mask_map_generator"):
             decoder_mask_map = self.decoder_mask_map_generator()
         else:
             decoder_mask_map = 1 - encoder_mask_map
@@ -62,10 +68,12 @@ class DataAugmentationForVideoMAEv2(object):
         repr = "(DataAugmentationForVideoMAEv2,\n"
         repr += "  transform = %s,\n" % str(self.transform)
         repr += "  Encoder Masking Generator = %s,\n" % str(
-            self.encoder_mask_map_generator)
-        if hasattr(self, 'decoder_mask_map_generator'):
+            self.encoder_mask_map_generator
+        )
+        if hasattr(self, "decoder_mask_map_generator"):
             repr += "  Decoder Masking Generator = %s,\n" % str(
-                self.decoder_mask_map_generator)
+                self.decoder_mask_map_generator
+            )
         else:
             repr += "  Do not use decoder masking,\n"
         repr += ")"
@@ -124,24 +132,25 @@ class HybridVideoMAE(torch.utils.data.Dataset):
         Number of sampled views for Repeated Augmentation.
     """
 
-    def __init__(self,
-                 root,
-                 setting,
-                 train=True,
-                 test_mode=False,
-                 name_pattern='img_{:05}.jpg',
-                 video_ext='mp4',
-                 is_color=True,
-                 modality='rgb',
-                 num_segments=1,
-                 num_crop=1,
-                 new_length=1,
-                 new_step=1,
-                 transform=None,
-                 temporal_jitter=False,
-                 lazy_init=False,
-                 num_sample=1):
-
+    def __init__(
+        self,
+        root,
+        setting,
+        train=True,
+        test_mode=False,
+        name_pattern="img_{:05}.jpg",
+        video_ext="mp4",
+        is_color=True,
+        modality="rgb",
+        num_segments=1,
+        num_crop=1,
+        new_length=1,
+        new_step=1,
+        transform=None,
+        temporal_jitter=False,
+        lazy_init=False,
+        num_sample=1,
+    ):
         super(HybridVideoMAE, self).__init__()
         self.root = root
         self.setting = setting
@@ -165,8 +174,8 @@ class HybridVideoMAE(torch.utils.data.Dataset):
         # for hybrid train
         # different frame naming formats are used for different datasets
         # should MODIFY the fname_tmpl to your own situation
-        self.ava_fname_tmpl = 'image_{:06}.jpg'
-        self.ssv2_fname_tmpl = 'img_{:05}.jpg'
+        self.ava_fname_tmpl = "image_{:06}.jpg"
+        self.ssv2_fname_tmpl = "img_{:05}.jpg"
 
         # NOTE:
         # we set sampling_rate = 2 for ssv2
@@ -175,7 +184,7 @@ class HybridVideoMAE(torch.utils.data.Dataset):
         # if decoded at 24 fps, the sample interval should be 4.
         self.orig_new_step = new_step
         self.orig_skip_length = self.skip_length
-        
+
         self.video_loader = get_video_loader()
         self.image_loader = get_image_loader()
 
@@ -183,59 +192,67 @@ class HybridVideoMAE(torch.utils.data.Dataset):
             self.clips = self._make_dataset(root, setting)
             if len(self.clips) == 0:
                 raise (
-                    RuntimeError("Found 0 video clips in subfolders of: " +
-                                 root + "\n"
-                                 "Check your data directory (opt.data-dir)."))
+                    RuntimeError(
+                        "Found 0 video clips in subfolders of: " + root + "\n"
+                        "Check your data directory (opt.data-dir)."
+                    )
+                )
 
     def __getitem__(self, index):
         try:
             video_name, start_idx, total_frame = self.clips[index]
             self.skip_length = self.orig_skip_length
             self.new_step = self.orig_new_step
-            
+
             if total_frame < 0:
                 decord_vr = self.video_loader(video_name)
                 duration = len(decord_vr)
 
                 segment_indices, skip_offsets = self._sample_train_indices(
-                    duration)
-                frame_id_list = self.get_frame_id_list(duration,
-                                                       segment_indices,
-                                                       skip_offsets)
+                    duration
+                )
+                frame_id_list = self.get_frame_id_list(
+                    duration, segment_indices, skip_offsets
+                )
                 video_data = decord_vr.get_batch(frame_id_list).asnumpy()
                 images = [
-                    Image.fromarray(video_data[vid, :, :, :]).convert('RGB')
+                    Image.fromarray(video_data[vid, :, :, :]).convert("RGB")
                     for vid, _ in enumerate(frame_id_list)
                 ]
 
             else:
                 # ssv2 & ava & other rawframe dataset
-                if 'SomethingV2' in video_name:
+                if "SomethingV2" in video_name:
                     self.new_step = 2
                     self.skip_length = self.new_length * self.new_step
                     fname_tmpl = self.ssv2_fname_tmpl
-                elif 'AVA2.2' in video_name:
+                elif "AVA2.2" in video_name:
                     fname_tmpl = self.ava_fname_tmpl
                 else:
                     fname_tmpl = self.name_pattern
 
                 segment_indices, skip_offsets = self._sample_train_indices(
-                    total_frame)
-                frame_id_list = self.get_frame_id_list(total_frame,
-                                                       segment_indices,
-                                                       skip_offsets)
+                    total_frame
+                )
+                frame_id_list = self.get_frame_id_list(
+                    total_frame, segment_indices, skip_offsets
+                )
 
                 images = []
                 for idx in frame_id_list:
                     frame_fname = os.path.join(
-                        video_name, fname_tmpl.format(idx + start_idx))
+                        video_name, fname_tmpl.format(idx + start_idx)
+                    )
                     img = self.image_loader(frame_fname)
                     img = Image.fromarray(img)
                     images.append(img)
 
         except Exception as e:
-            print("Failed to load video from {} with error {}".format(
-                video_name, e))
+            print(
+                "Failed to load video from {} with error {}".format(
+                    video_name, e
+                )
+            )
             index = random.randint(0, len(self.clips) - 1)
             return self.__getitem__(index)
 
@@ -245,21 +262,23 @@ class HybridVideoMAE(torch.utils.data.Dataset):
             decoder_mask_list = []
             for _ in range(self.num_sample):
                 process_data, encoder_mask, decoder_mask = self.transform(
-                    (images, None))
+                    (images, None)
+                )
                 process_data = process_data.view(
-                    (self.new_length, 3) + process_data.size()[-2:]).transpose(
-                        0, 1)
+                    (self.new_length, 3) + process_data.size()[-2:]
+                ).transpose(0, 1)
                 process_data_list.append(process_data)
                 encoder_mask_list.append(encoder_mask)
                 decoder_mask_list.append(decoder_mask)
             return process_data_list, encoder_mask_list, decoder_mask_list
         else:
             process_data, encoder_mask, decoder_mask = self.transform(
-                (images, None))
+                (images, None)
+            )
             # T*C,H,W -> T,C,H,W -> C,T,H,W
             process_data = process_data.view(
-                (self.new_length, 3) + process_data.size()[-2:]).transpose(
-                    0, 1)
+                (self.new_length, 3) + process_data.size()[-2:]
+            ).transpose(0, 1)
             return process_data, encoder_mask, decoder_mask
 
     def __len__(self):
@@ -267,19 +286,25 @@ class HybridVideoMAE(torch.utils.data.Dataset):
 
     def _make_dataset(self, root, setting):
         if not os.path.exists(setting):
-            raise (RuntimeError(
-                "Setting file %s doesn't exist. Check opt.train-list and opt.val-list. "
-                % (setting)))
+            raise (
+                RuntimeError(
+                    "Setting file %s doesn't exist. Check opt.train-list and opt.val-list. "
+                    % (setting)
+                )
+            )
         clips = []
         with open(setting) as split_f:
             data = split_f.readlines()
             for line in data:
-                line_info = line.split(' ')
+                line_info = line.split(" ")
                 # line format: video_path, video_duration, video_label
                 if len(line_info) < 2:
-                    raise (RuntimeError(
-                        'Video input format is not correct, missing one or more element. %s'
-                        % line))
+                    raise (
+                        RuntimeError(
+                            "Video input format is not correct, missing one or more element. %s"
+                            % line
+                        )
+                    )
                 clip_path = os.path.join(root, line_info[0])
                 start_idx = int(line_info[1])
                 total_frame = int(line_info[2])
@@ -288,26 +313,33 @@ class HybridVideoMAE(torch.utils.data.Dataset):
         return clips
 
     def _sample_train_indices(self, num_frames):
-        average_duration = (num_frames - self.skip_length +
-                            1) // self.num_segments
+        average_duration = (
+            num_frames - self.skip_length + 1
+        ) // self.num_segments
         if average_duration > 0:
             offsets = np.multiply(
-                list(range(self.num_segments)), average_duration)
+                list(range(self.num_segments)), average_duration
+            )
             offsets = offsets + np.random.randint(
-                average_duration, size=self.num_segments)
+                average_duration, size=self.num_segments
+            )
         elif num_frames > max(self.num_segments, self.skip_length):
             offsets = np.sort(
                 np.random.randint(
-                    num_frames - self.skip_length + 1, size=self.num_segments))
+                    num_frames - self.skip_length + 1, size=self.num_segments
+                )
+            )
         else:
-            offsets = np.zeros((self.num_segments, ))
+            offsets = np.zeros((self.num_segments,))
 
         if self.temporal_jitter:
             skip_offsets = np.random.randint(
-                self.new_step, size=self.skip_length // self.new_step)
+                self.new_step, size=self.skip_length // self.new_step
+            )
         else:
             skip_offsets = np.zeros(
-                self.skip_length // self.new_step, dtype=int)
+                self.skip_length // self.new_step, dtype=int
+            )
         return offsets + 1, skip_offsets
 
     def get_frame_id_list(self, duration, indices, skip_offsets):
@@ -377,24 +409,25 @@ class VideoMAE(torch.utils.data.Dataset):
         Number of sampled views for Repeated Augmentation.
     """
 
-    def __init__(self,
-                 root,
-                 setting,
-                 train=True,
-                 test_mode=False,
-                 name_pattern='img_{:05}.jpg',
-                 video_ext='mp4',
-                 is_color=True,
-                 modality='rgb',
-                 num_segments=1,
-                 num_crop=1,
-                 new_length=1,
-                 new_step=1,
-                 transform=None,
-                 temporal_jitter=False,
-                 lazy_init=False,
-                 num_sample=1):
-
+    def __init__(
+        self,
+        root,
+        setting,
+        train=True,
+        test_mode=False,
+        name_pattern="img_{:05}.jpg",
+        video_ext="mp4",
+        is_color=True,
+        modality="rgb",
+        num_segments=1,
+        num_crop=1,
+        new_length=1,
+        new_step=1,
+        transform=None,
+        temporal_jitter=False,
+        lazy_init=False,
+        num_sample=1,
+    ):
         super(VideoMAE, self).__init__()
         self.root = root
         self.setting = setting
@@ -421,9 +454,11 @@ class VideoMAE(torch.utils.data.Dataset):
             self.clips = self._make_dataset(root, setting)
             if len(self.clips) == 0:
                 raise (
-                    RuntimeError("Found 0 video clips in subfolders of: " +
-                                 root + "\n"
-                                 "Check your data directory (opt.data-dir)."))
+                    RuntimeError(
+                        "Found 0 video clips in subfolders of: " + root + "\n"
+                        "Check your data directory (opt.data-dir)."
+                    )
+                )
 
     def __getitem__(self, index):
         try:
@@ -433,33 +468,39 @@ class VideoMAE(torch.utils.data.Dataset):
                 duration = len(decord_vr)
 
                 segment_indices, skip_offsets = self._sample_train_indices(
-                    duration)
-                frame_id_list = self.get_frame_id_list(duration,
-                                                       segment_indices,
-                                                       skip_offsets)
+                    duration
+                )
+                frame_id_list = self.get_frame_id_list(
+                    duration, segment_indices, skip_offsets
+                )
                 video_data = decord_vr.get_batch(frame_id_list).asnumpy()
                 images = [
-                    Image.fromarray(video_data[vid, :, :, :]).convert('RGB')
+                    Image.fromarray(video_data[vid, :, :, :]).convert("RGB")
                     for vid, _ in enumerate(frame_id_list)
                 ]
             else:  # load frames
                 segment_indices, skip_offsets = self._sample_train_indices(
-                    total_frame)
-                frame_id_list = self.get_frame_id_list(total_frame,
-                                                       segment_indices,
-                                                       skip_offsets)
+                    total_frame
+                )
+                frame_id_list = self.get_frame_id_list(
+                    total_frame, segment_indices, skip_offsets
+                )
 
                 images = []
                 for idx in frame_id_list:
                     frame_fname = os.path.join(
-                        video_name, self.name_pattern.format(idx + start_idx))
+                        video_name, self.name_pattern.format(idx + start_idx)
+                    )
                     img = self.image_loader(frame_fname)
                     img = Image.fromarray(img)
                     images.append(img)
 
         except Exception as e:
-            print("Failed to load video from {} with error {}".format(
-                video_name, e))
+            print(
+                "Failed to load video from {} with error {}".format(
+                    video_name, e
+                )
+            )
             index = random.randint(0, len(self.clips) - 1)
             return self.__getitem__(index)
 
@@ -469,21 +510,23 @@ class VideoMAE(torch.utils.data.Dataset):
             decoder_mask_list = []
             for _ in range(self.num_sample):
                 process_data, encoder_mask, decoder_mask = self.transform(
-                    (images, None))
+                    (images, None)
+                )
                 process_data = process_data.view(
-                    (self.new_length, 3) + process_data.size()[-2:]).transpose(
-                        0, 1)
+                    (self.new_length, 3) + process_data.size()[-2:]
+                ).transpose(0, 1)
                 process_data_list.append(process_data)
                 encoder_mask_list.append(encoder_mask)
                 decoder_mask_list.append(decoder_mask)
             return process_data_list, encoder_mask_list, decoder_mask_list
         else:
             process_data, encoder_mask, decoder_mask = self.transform(
-                (images, None))
+                (images, None)
+            )
             # T*C,H,W -> T,C,H,W -> C,T,H,W
             process_data = process_data.view(
-                (self.new_length, 3) + process_data.size()[-2:]).transpose(
-                    0, 1)
+                (self.new_length, 3) + process_data.size()[-2:]
+            ).transpose(0, 1)
             return process_data, encoder_mask, decoder_mask
 
     def __len__(self):
@@ -491,19 +534,25 @@ class VideoMAE(torch.utils.data.Dataset):
 
     def _make_dataset(self, root, setting):
         if not os.path.exists(setting):
-            raise (RuntimeError(
-                "Setting file %s doesn't exist. Check opt.train-list and opt.val-list. "
-                % (setting)))
+            raise (
+                RuntimeError(
+                    "Setting file %s doesn't exist. Check opt.train-list and opt.val-list. "
+                    % (setting)
+                )
+            )
         clips = []
         with open(setting) as split_f:
             data = split_f.readlines()
             for line in data:
-                line_info = line.split(' ')
+                line_info = line.split(" ")
                 # line format: video_path, start_idx, total_frames
                 if len(line_info) < 3:
-                    raise (RuntimeError(
-                        'Video input format is not correct, missing one or more element. %s'
-                        % line))
+                    raise (
+                        RuntimeError(
+                            "Video input format is not correct, missing one or more element. %s"
+                            % line
+                        )
+                    )
                 clip_path = os.path.join(root, line_info[0])
                 start_idx = int(line_info[1])
                 total_frame = int(line_info[2])
@@ -512,26 +561,33 @@ class VideoMAE(torch.utils.data.Dataset):
         return clips
 
     def _sample_train_indices(self, num_frames):
-        average_duration = (num_frames - self.skip_length +
-                            1) // self.num_segments
+        average_duration = (
+            num_frames - self.skip_length + 1
+        ) // self.num_segments
         if average_duration > 0:
             offsets = np.multiply(
-                list(range(self.num_segments)), average_duration)
+                list(range(self.num_segments)), average_duration
+            )
             offsets = offsets + np.random.randint(
-                average_duration, size=self.num_segments)
+                average_duration, size=self.num_segments
+            )
         elif num_frames > max(self.num_segments, self.skip_length):
             offsets = np.sort(
                 np.random.randint(
-                    num_frames - self.skip_length + 1, size=self.num_segments))
+                    num_frames - self.skip_length + 1, size=self.num_segments
+                )
+            )
         else:
-            offsets = np.zeros((self.num_segments, ))
+            offsets = np.zeros((self.num_segments,))
 
         if self.temporal_jitter:
             skip_offsets = np.random.randint(
-                self.new_step, size=self.skip_length // self.new_step)
+                self.new_step, size=self.skip_length // self.new_step
+            )
         else:
             skip_offsets = np.zeros(
-                self.skip_length // self.new_step, dtype=int)
+                self.skip_length // self.new_step, dtype=int
+            )
         return offsets + 1, skip_offsets
 
     def get_frame_id_list(self, duration, indices, skip_offsets):

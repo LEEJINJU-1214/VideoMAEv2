@@ -27,7 +27,7 @@ from timm.utils import get_state_dict
 from torchvision import transforms
 from tensorboardX import SummaryWriter
 from torch.utils.data._utils.collate import default_collate
-
+from datetime import timedelta
 
 class SmoothedValue(object):
     """Track a series of values and provide access to smoothed values over a
@@ -325,7 +325,7 @@ def init_distributed_mode(args):
     args.distributed = True
 
     torch.cuda.set_device(args.gpu)
-    args.dist_backend = "nccl"
+    args.dist_backend = "gloo"
     print(
         "| distributed init (rank {}): {}, gpu {}".format(
             args.rank, args.dist_url, args.gpu
@@ -337,6 +337,7 @@ def init_distributed_mode(args):
         init_method=args.dist_url,
         world_size=args.world_size,
         rank=args.rank,
+        timeout=timedelta(seconds=1800) 
     )
     torch.cuda.empty_cache()
     torch.distributed.barrier()
@@ -652,6 +653,9 @@ def create_ds_config(args):
                 "initial_scale_power": 7,
                 "loss_scale_window": 128,
             },
+            # 'allreduce_bucket_size':   args.allreduce_bucket_size,
+            # "train_micro_batch_size_per_gpu": args.batch_size,
+            # "gradient_accumulation_steps": args.update_freq,
         }
 
         writer.write(json.dumps(ds_config, indent=2))
